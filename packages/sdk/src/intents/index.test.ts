@@ -97,18 +97,49 @@ describe("chain names", () => {
 
   it("names only chains whose EVM entry exists", () => {
     for (const xebra of Object.values(INTENTS_CHAINS)) {
-      if (xebra === "stellar" || xebra === "sui" || xebra === "solana") continue;
+      if (xebra === "stellar" || xebra === "sui" || xebra === "aptos" || xebra === "solana") {
+        continue;
+      }
       expect(EVM_CHAINS[xebra]).toBeDefined();
     }
   });
 });
 
 describe("usdcChainOf", () => {
+  it("skips an asset ID 1Click marks deprecated, keeping its replacement", () => {
+    // Both entries copied from the live 1Click token list on 2026-11-14 (same contract).
+    const legacy = {
+      assetId: "nep245:v2_1.omni.hot.tg:43114_3atVJH3r5c4GqiSYmg9fECvjc47o",
+      blockchain: "avax",
+      symbol: "USDC(DEPRECATED)",
+      decimals: 6,
+      contractAddress: "0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e",
+    };
+    expect(usdcChainOf(legacy)).toBeNull();
+    expect(
+      usdcChainOf({
+        ...legacy,
+        assetId: "nep141:avax-0xb97ef9ef8734c71904d8002f8b6bc66dd9c48a6e.omdep.near",
+        symbol: "USDC",
+      }),
+    ).toBe("avalanche");
+  });
+
   it("recognises Circle's USDC on each chain Xebra reaches", () => {
     expect(usdcChainOf(TOKENS.baseUsdc)).toBe("base");
     expect(usdcChainOf(TOKENS.solUsdc)).toBe("solana");
     expect(usdcChainOf(TOKENS.stellarUsdc)).toBe("stellar");
     expect(usdcChainOf(TOKENS.suiUsdc)).toBe("sui");
+    // Entry copied from the live 1Click token list on 2026-11-14.
+    expect(
+      usdcChainOf({
+        assetId: "nep141:aptos-34ee497f210c5a511e8d5b53bc56d75b63612bb5.omft.near",
+        blockchain: "aptos",
+        symbol: "USDC",
+        decimals: 6,
+        contractAddress: "0xbae207659db88bea0cbead6da0ed00aac12edcdda169e591cd41c94180b46f3b",
+      }),
+    ).toBe("aptos");
     expect(usdcChainOf(TOKENS.monadUsdc)).toBe("monad");
   });
 

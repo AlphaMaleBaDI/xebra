@@ -48,6 +48,45 @@ try {
 }
 ```
 
+## Rebalancing USDC inside NEAR Intents (market makers)
+
+NEAR Intents keeps one USDC balance per chain. When your Base USDC is full and your Avalanche USDC
+is empty, `createRebalancer` moves your own money across over CCTP: withdraw from NEAR Intents to
+your wallet, burn, and Circle mints straight into a 1Click deposit address that credits your
+Intents account. Every step is signed by your keys; Xebra holds nothing.
+
+```ts
+import { createXebraClient } from "@xebra/sdk";
+import { createRebalancer } from "@xebra/sdk/intents";
+
+const rb = createRebalancer({
+  xebra: createXebraClient(),
+  oneClick: { apiKey: process.env.ONECLICK_API_KEY }, // your partner key; only the withdrawal needs it
+});
+const req = {
+  intentsAccount: "mm.near",
+  from: "base",
+  to: "avax",
+  amount: "100000",
+  fromWallet: "0xYourBaseWallet",
+  toWallet: "0xYourAvalancheWallet", // refunds land here if the mint comes too late
+};
+
+const e = await rb.estimate(req); // dry quotes only; also prices the same move as one Intents swap
+if (e.better === "rebalance") {
+  const w = await rb.startWithdrawal(req); // sign w.intent.payload with mm.near's key
+  await rb.submitWithdrawal(w, signed);
+  await rb.waitFor(w.depositAddress);
+  const d = await rb.prepareDeposit(req, { amount: w.receives });
+  // sign and send d.build.steps from 0xYourBaseWallet, then:
+  await rb.waitFor(d.depositAddress);
+}
+```
+
+Live dry quotes on 2026-11-14 for 100,000 USDC from Base: Avalanche, Polygon, Optimism and Monad
+cost 0.05 to 0.10 USDC this way, and NEAR Intents had no market maker to quote the same move as one
+swap. Only routes Xebra runs are offered (`GET /v1/routes`).
+
 ## What is in the package
 
 | Import | For |
@@ -55,6 +94,7 @@ try {
 | `@xebra/sdk` | The API client, the wire schemas and types, error codes |
 | `@xebra/sdk/core` | Pure helpers: chains, amounts, fee arithmetic, address checks |
 | `@xebra/sdk/build` | Building the unsigned transactions yourself, against your own RPC |
+| `@xebra/sdk/intents` | NEAR Intents: route checks, deposits into 1Click, market-maker rebalancing |
 | `@xebra/sdk/openapi` | The OpenAPI 3.1 document; also shipped as `@xebra/sdk/openapi.json` |
 
 Amounts are decimal strings of USDC with at most six places (`"12.5"`), never numbers.

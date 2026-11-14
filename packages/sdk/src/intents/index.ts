@@ -36,6 +36,7 @@ import { type ChainId, isChainId } from "../core/chains/ids.js";
 export const INTENTS_CHAINS = {
   stellar: "stellar",
   sui: "sui",
+  aptos: "aptos",
   sol: "solana",
   base: "base",
   arb: "arbitrum",
@@ -118,13 +119,26 @@ export interface IntentsToken {
 /**
  * The Xebra chain on which `token` is Circle's native USDC, or null.
  *
- * Decided by the contract address alone. A symbol proves nothing: anyone can name a token USDC,
- * and bridged copies of USDC share the symbol without being something CCTP can burn.
+ * Decided by the contract address. A symbol proves nothing: anyone can name a token USDC, and
+ * bridged copies of USDC share the symbol without being something CCTP can burn. The one thing a
+ * symbol is trusted for is 1Click's own "(DEPRECATED)" mark on a retired asset ID.
  */
 export function usdcChainOf(token: IntentsToken): ChainId | null {
   const chain = toXebraChain(token.blockchain);
   if (!chain || !token.contractAddress) return null;
-  if (!(chain === "stellar" || chain === "sui" || chain === "solana" || isEvmChainId(chain))) {
+  // A retired asset ID for the same contract stays listed, marked "USDC(DEPRECATED)": on
+  // 2026-11-09 the Avalanche, Polygon and BNB Chain tokens moved from HOT IDs to Omni IDs and the
+  // old IDs no longer quote. A symbol can rule an entry out, never in.
+  if (/deprecated/i.test(token.symbol)) return null;
+  if (
+    !(
+      chain === "stellar" ||
+      chain === "sui" ||
+      chain === "aptos" ||
+      chain === "solana" ||
+      isEvmChainId(chain)
+    )
+  ) {
     return null;
   }
   const expected = circleUsdcAddress(chain);
@@ -236,3 +250,5 @@ export function createIntentsRouter(opts: IntentsRouterOptions) {
 }
 
 export type IntentsRouter = ReturnType<typeof createIntentsRouter>;
+
+export * from "./rebalance.js";
