@@ -3,9 +3,13 @@ title: Changelog
 description: What changed in the Xebra API and SDK, newest first.
 ---
 
-## 0.3.0 (2026-11-13)
+## 0.3.0 (2026-11-14)
 
 **API**:
+
+- Solana, Sui and Aptos are source chains to every EVM chain Xebra lists and to Arc; Sui and Aptos
+  also send to Solana, and all three to Stellar, where Xebra's relayer completes the mint. `GET
+  /v1/routes` lists them; `POST /v1/transfers` from Aptos returns a step of kind `aptos`.
 
 - Transfers from Arc build again while Xebra's fee wrapper is on. `GET /v1/quote` from Arc now
   prices with the wrapper's live terms (its fee, minimum and maximum); before, it showed no Xebra fee
@@ -19,6 +23,12 @@ description: What changed in the Xebra API and SDK, newest first.
 - `EnabledRoutes.evmMesh` and `parseEvmMesh`: EVM chains that all send to each other.
 - [NEAR Intents](/docs/guides/near-intents): `pickHub` and `buildDeposit` work from Arc and the EVM
   chains as they did from Stellar. The guide shows an EVM sender.
+- `ChainId` includes `"aptos"`, and `TransferStep` a new `aptos` kind: Circle's precompiled CCTP V2
+  burn script and its arguments. From `@xebra/sdk/build`, `aptosBurnPayload` turns it into what an
+  Aptos wallet signs, and `aptosBurnArgs`, `buildAptosBurnStep` and `normaliseAptosAddress` build one.
+- Sui: `buildForwardedBurn` and `buildSuiForwardStep` burn with Circle's forwarding, so Sui reaches
+  every EVM chain and Solana without a claim on the other side.
+- `stellarBurnRecipient("G...")`: the mint recipient and hook for a burn into Stellar from any chain.
 
 Nothing in 0.2.0 changed.
 
