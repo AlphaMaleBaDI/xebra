@@ -761,7 +761,10 @@ export function StellarBridgeForm({
               inputMode="decimal"
               autoComplete="off"
               value={amountInput}
-              onChange={(e) => setAmountInput(e.target.value)}
+              onChange={(e) => {
+                setAmountInput(e.target.value);
+                setSubmitError(null);
+              }}
               invalid={Boolean(amountProblem)}
               aria-invalid={amountProblem ? "true" : undefined}
               aria-describedby={amountProblem ? "amount-error" : undefined}
@@ -805,7 +808,10 @@ export function StellarBridgeForm({
             spellCheck={false}
             autoComplete="off"
             value={destination}
-            onChange={(e) => setDestination(e.target.value)}
+            onChange={(e) => {
+              setDestination(e.target.value);
+              setSubmitError(null);
+            }}
             placeholder={dest.addressPlaceholder}
             invalid={Boolean(destinationCheck.error)}
             aria-invalid={destinationCheck.error ? "true" : undefined}
