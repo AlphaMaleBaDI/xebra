@@ -34,7 +34,7 @@ import { useWallets } from "../wallet/wallet-provider";
 import { CHAIN_NAMES } from "./chain-glyph";
 import { ChainPicker, PickerLabel } from "./chain-picker";
 import { EvmQuotePanel } from "./evm-quote-panel";
-import { SubmittedNotice } from "./receipt";
+import { CopyButton, SubmittedNotice } from "./receipt";
 
 /**
  * A transfer that starts on Aptos: burn native USDC with Circle's CCTP script, signed in the
@@ -73,12 +73,14 @@ interface Remembered {
   at: number;
 }
 
-function remember(t: Remembered | null) {
+export function remember(t: Remembered | null): boolean {
   try {
     if (t) window.localStorage.setItem(STORAGE_KEY, JSON.stringify(t));
     else window.localStorage.removeItem(STORAGE_KEY);
+    return true;
   } catch {
     // Private mode or blocked storage: the transfer still works, it just cannot be resumed.
+    return false;
   }
 }
 
@@ -100,6 +102,7 @@ export function isDestination(v: unknown): v is AptosDestination {
   return v === "solana" || v === "stellar" || (typeof v === "string" && isEvmChainId(v));
 }
 
+const short = (s: string) => `${s.slice(0, 6)}...${s.slice(-4)}`;
 const explorer = (tx: string) => `https://explorer.aptoslabs.com/txn/${tx}?network=mainnet`;
 const nameOf = (d: AptosDestination) => CHAIN_NAMES[d];
 
@@ -131,6 +134,7 @@ export function AptosBridgeForm({
   const [step, setStep] = useState<"idle" | "preparing" | "signing">("idle");
   const [error, setError] = useState<{ text: string; declined: boolean } | null>(null);
   const [sent, setSent] = useState<Remembered | null>(null);
+  const [saved, setSaved] = useState(true);
 
   // A transfer this browser was following comes back on screen.
   useEffect(() => {
@@ -302,7 +306,8 @@ export function AptosBridgeForm({
       setStep("signing");
       const tx = await signAndSubmitAptos(wallet, args, envelope);
       const r = { tx, to, at: Date.now() };
-      remember(r);
+      const savedOk = remember(r);
+      setSaved(savedOk);
       setSent(r);
     } catch (err) {
       const text = reportError("aptos burn failed", err);
@@ -341,6 +346,7 @@ export function AptosBridgeForm({
 
   function startOver() {
     remember(null);
+    setSaved(true);
     setSent(null);
     setError(null);
     setAmount("");
@@ -367,6 +373,7 @@ export function AptosBridgeForm({
         tx={sent.tx}
         to={sent.to as Exclude<AptosDestination, "stellar">}
         sentAt={sent.at}
+        saved={saved}
         onReset={startOver}
       />
     );
@@ -531,11 +538,13 @@ function Forwarded({
   tx,
   to,
   sentAt,
+  saved = true,
   onReset,
 }: {
   tx: `0x${string}`;
   to: Exclude<AptosDestination, "stellar">;
   sentAt: number;
+  saved?: boolean;
   onReset: () => void;
 }) {
   const dest = routeDestination(to);
@@ -587,11 +596,19 @@ function Forwarded({
         }}
       />
       <div className="flex items-center justify-between gap-3">
-        {!delivered && (
-          <p className="max-w-[18rem] text-xs leading-relaxed text-bone/35">
-            Safe to close this tab. Come back on the same browser and it picks up where it left off.
-          </p>
-        )}
+        {!delivered &&
+          (saved ? (
+            <p className="max-w-[18rem] text-xs leading-relaxed text-bone/35">
+              Safe to close this tab. Come back on the same browser and it picks up where it left
+              off.
+            </p>
+          ) : (
+            <p className="max-w-[20rem] text-xs leading-relaxed text-bone/45">
+              This browser could not save your transfer. Keep this hash to find it again:{" "}
+              <span className="tabular font-mono text-bone/70">{short(tx)}</span>{" "}
+              <CopyButton value={tx} label="transaction hash" />
+            </p>
+          ))}
         <Button
           variant={delivered ? "primary" : "quiet"}
           size="sm"
